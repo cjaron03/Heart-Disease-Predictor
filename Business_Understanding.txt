@@ -1,0 +1,11 @@
+Early detection of heart disease is extremely important because cardio vascular condtions 
+often progress silently until they cause severe, sometimes even fatal, events such as heart attacks or heart failure
+Predictive tools that flag elevated risk before symptioms become severe can support earlier lifestyle changes
+follow-up testing, and clinical interventions, potentially reducing morbidity nad mortality.
+A system like ours can benefit primary care providers, and indvidual pateins who want a data-driven snapshot of their cardiovasular 
+risk profile.
+
+In this project, we aim to answer questions like: which clinical and lifestyle indicators most storngly predict heart disease,
+how accurately tree-based models (Decision Tree and Random Forest) can classify patiens into "disease" vs "no deases", 
+and whether we can desgin a simple, user-friendly Heart Risk Advisor that turns model outputs into understandable, educational
+feedback ofr non-experts 

@@ -1,0 +1,38 @@
+CLAUDE.md
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# environment variables
+.env
+.env.local
+
+# jupyter notebook checkpoints
+.ipynb_checkpoints
+
+# model files (uncomment if you don't want to commit trained models)
+# *.pkl
+# *.model
+# *.h5
+# *.joblib
+
+# ide
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# os
+.DS_Store
+Thumbs.db
