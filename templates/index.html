@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heart Health Assessment</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-bar">
+        <div class="app-bar-content">
+            <span class="material-icons logo-icon">favorite</span>
+            <h1>Heart Health Assessment</h1>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="card input-card">
+            <div class="card-header">
+                <h2>Enter Health Metrics</h2>
+                <p class="subtitle">Complete the form below to assess cardiovascular risk factors.</p>
+            </div>
+
+            <form id="risk-form">
+                <div class="form-grid">
+                    <!-- Age -->
+                    <div class="form-group" style="animation-delay: 0.05s">
+                        <label for="age">Age</label>
+                        <input type="number" id="age" name="age" min="20" max="100" value="50" required>
+                        <span class="hint">Your age in years</span>
+                    </div>
+
+                    <!-- Sex -->
+                    <div class="form-group" style="animation-delay: 0.1s">
+                        <label for="sex">Biological Sex</label>
+                        <select id="sex" name="sex" required>
+                            <option value="1">Male</option>
+                            <option value="0">Female</option>
+                        </select>
+                        <span class="hint">Select biological sex</span>
+                    </div>
+
+                    <!-- Chest Pain Type -->
+                    <div class="form-group" style="animation-delay: 0.15s">
+                        <div class="label-row">
+                            <label for="cp">Chest Pain Type</label>
+                            <span class="material-icons help-icon">help_outline</span>
+                            <div class="tooltip-content">Typical Angina: Chest pain related to heart.
+Atypical Angina: Chest pain not related to heart.
+Non-anginal Pain: Pain not caused by heart disease.
+Asymptomatic: No pain.</div>
+                        </div>
+                        <select id="cp" name="cp" required>
+                            <option value="1">Typical Angina</option>
+                            <option value="2">Atypical Angina</option>
+                            <option value="3">Non-anginal Pain</option>
+                            <option value="4" selected>Asymptomatic (No Pain)</option>
+                        </select>
+                        <span class="hint">Type of chest discomfort experienced</span>
+                    </div>
+
+                    <!-- Resting Blood Pressure -->
+                    <div class="form-group" style="animation-delay: 0.2s">
+                        <div class="label-row">
+                            <label for="trestbps">Resting Blood Pressure</label>
+                            <span class="material-icons help-icon">help_outline</span>
+                            <div class="tooltip-content">The top number (systolic) of your blood pressure reading.</div>
+                        </div>
+                        <input type="number" id="trestbps" name="trestbps" min="80" max="220" value="130" required>
+                        <span class="hint">Systolic mm Hg (Normal: 90-120)</span>
+                    </div>
+
+                    <!-- Cholesterol -->
+                    <div class="form-group" style="animation-delay: 0.25s">
+                        <div class="label-row">
+                            <label for="chol">Serum Cholesterol</label>
+                            <span class="material-icons help-icon">help_outline</span>
+                            <div class="tooltip-content">Your total cholesterol level in mg/dl.</div>
+                        </div>
+                        <input type="number" id="chol" name="chol" min="100" max="600" value="250" required>
+                        <span class="hint">Total cholesterol in mg/dl</span>
+                    </div>
+
+                    <!-- Maximum Heart Rate -->
+                    <div class="form-group" style="animation-delay: 0.3s">
+                        <label for="thalach">Max Heart Rate Achieved</label>
+                        <input type="number" id="thalach" name="thalach" min="60" max="220" value="150" required>
+                        <span class="hint">Highest heart rate during exercise</span>
+                    </div>
+
+                    <!-- Exercise Induced Angina -->
+                    <div class="form-group" style="animation-delay: 0.35s">
+                        <div class="label-row">
+                            <label for="exang">Exercise Angina</label>
+                            <span class="material-icons help-icon">help_outline</span>
+                            <div class="tooltip-content">Do you experience chest pain when you exercise?</div>
+                        </div>
+                        <select id="exang" name="exang" required>
+                            <option value="0" selected>No</option>
+                            <option value="1">Yes</option>
+                        </select>
+                        <span class="hint">Chest pain during physical activity?</span>
+                    </div>
+
+                    <!-- ST Depression -->
+                    <div class="form-group" style="animation-delay: 0.4s">
+                        <div class="label-row">
+                            <label for="oldpeak">ST Depression (ECG Result)</label>
+                            <span class="material-icons help-icon">help_outline</span>
+                            <div class="tooltip-content">A value from an ECG test indicating heart stress. Enter 0 if unknown or if your ECG was normal.</div>
+                        </div>
+                        <input type="number" id="oldpeak" name="oldpeak" min="0" max="7" step="0.1" value="0.0" required>
+                        <span class="hint">ECG value (Enter 0 if unknown)</span>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" id="submit-btn" class="btn-primary">
+                        <span class="btn-text">Assess Risk</span>
+                        <span class="btn-loading" style="display: none;">
+                            <span class="spinner"></span> Processing...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="results-section" style="display: none;">
+            <div class="card result-card">
+                <div id="risk-header" class="result-header">
+                    <span class="material-icons" id="risk-icon"></span>
+                    <h2 id="risk-title">Assessment Result</h2>
+                </div>
+                
+                <div class="result-body">
+                    <div class="risk-score">
+                        <span id="risk-text" class="display-text"></span>
+                    </div>
+                    <p id="risk-message" class="result-message"></p>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Feature Importance -->
+                <div class="feature-importance">
+                    <h3>Contributing Factors</h3>
+                    <p class="importance-subtitle">Top clinical indicators influencing this result:</p>
+                    <div id="importance-bars"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <div class="disclaimer-box">
+                <span class="material-icons disclaimer-icon">info</span>
+                <div class="disclaimer-text">
+                    <strong>Educational Use Only:</strong> This tool uses a machine learning model for demonstration purposes. 
+                    It is not a medical device and cannot diagnose heart disease. Consult a doctor for professional advice.
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    </div>
+
+    <script>
+        // Tooltip Logic
+        document.querySelectorAll('.help-icon').forEach(icon => {
+            icon.addEventListener('click', function(e) {
+                e.stopPropagation(); // Prevent document click from closing immediately
+                
+                // Close other open tooltips first
+                document.querySelectorAll('.tooltip-content.visible').forEach(t => {
+                    if (t !== this.nextElementSibling) {
+                        t.classList.remove('visible');
+                        t.previousElementSibling.classList.remove('active');
+                    }
+                });
+
+                const tooltip = this.nextElementSibling;
+                this.classList.toggle('active');
+                tooltip.classList.toggle('visible');
+            });
+        });
+
+        // Close tooltips when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.classList.contains('help-icon')) {
+                document.querySelectorAll('.tooltip-content.visible').forEach(t => {
+                    t.classList.remove('visible');
+                    t.previousElementSibling.classList.remove('active');
+                });
+            }
+        });
+
+        // Ripple Effect
+        document.querySelectorAll('.btn-primary').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                const circle = document.createElement('span');
+                const diameter = Math.max(this.clientWidth, this.clientHeight);
+                const radius = diameter / 2;
+
+                // Calculate click position relative to button
+                const rect = this.getBoundingClientRect();
+                
+                circle.style.width = circle.style.height = `${diameter}px`;
+                circle.style.left = `${e.clientX - rect.left - radius}px`;
+                circle.style.top = `${e.clientY - rect.top - radius}px`;
+                circle.classList.add('ripple');
+
+                // Remove existing ripple if any (optional, for rapid clicks)
+                const ripple = this.getElementsByClassName('ripple')[0];
+                if (ripple) {
+                    ripple.remove();
+                }
+
+                this.appendChild(circle);
+            });
+        });
+
+        document.getElementById('risk-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submit-btn');
+            const btnText = submitBtn.querySelector('.btn-text');
+            const btnLoading = submitBtn.querySelector('.btn-loading');
+
+            // Show loading state
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            submitBtn.disabled = true;
+
+            // Collect form data
+            const formData = {
+                age: document.getElementById('age').value,
+                sex: document.getElementById('sex').value,
+                cp: document.getElementById('cp').value,
+                trestbps: document.getElementById('trestbps').value,
+                chol: document.getElementById('chol').value,
+                thalach: document.getElementById('thalach').value,
+                exang: document.getElementById('exang').value,
+                oldpeak: document.getElementById('oldpeak').value
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (result.error) {
+                    alert(result.message);
+                    return;
+                }
+
+                // Display results
+                displayResults(result);
+
+            } catch (error) {
+                alert('Error: Could not connect to the server. Please ensure the Flask app is running.');
+                console.error('Error:', error);
+            } finally {
+                // Reset button state
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+
+        function displayResults(result) {
+            const resultsSection = document.getElementById('results');
+            const riskHeader = document.getElementById('risk-header');
+            const riskIcon = document.getElementById('risk-icon');
+            const riskText = document.getElementById('risk-text');
+            const riskMessage = document.getElementById('risk-message');
+            const importanceBars = document.getElementById('importance-bars');
+
+            // Reset classes
+            riskHeader.className = 'result-header';
+            
+            // Set risk level styling
+            if (result.prediction === 1) {
+                riskHeader.classList.add('high-risk-bg');
+                riskIcon.textContent = 'warning';
+                riskText.textContent = 'Elevated Risk';
+                riskText.style.color = '#d93025';
+            } else {
+                riskHeader.classList.add('low-risk-bg');
+                riskIcon.textContent = 'check_circle';
+                riskText.textContent = 'Lower Risk';
+                riskText.style.color = '#188038';
+            }
+
+            riskMessage.textContent = result.message;
+
+            // Display feature importance
+            importanceBars.innerHTML = '';
+            const features = result.feature_importance;
+            const featureLabels = {
+                'age': 'Age',
+                'sex': 'Sex',
+                'cp': 'Chest Pain',
+                'trestbps': 'Blood Pressure',
+                'chol': 'Cholesterol',
+                'fbs': 'Fasting Blood Sugar',
+                'restecg': 'Resting ECG',
+                'thalach': 'Max Heart Rate',
+                'exang': 'Exercise Angina',
+                'oldpeak': 'ST Depression',
+                'slope': 'ST Slope',
+                'ca': 'Major Vessels',
+                'thal': 'Thalassemia'
+            };
+
+            // Get top 5 features
+            const topFeatures = Object.entries(features).slice(0, 5);
+            const maxImportance = Math.max(...topFeatures.map(f => f[1]));
+
+            topFeatures.forEach(([feature, importance], index) => {
+                const row = document.createElement('div');
+                row.className = 'feature-row';
+
+                const label = document.createElement('div');
+                label.className = 'feature-label';
+                label.textContent = featureLabels[feature] || feature;
+
+                const track = document.createElement('div');
+                track.className = 'progress-track';
+
+                const bar = document.createElement('div');
+                bar.className = 'progress-bar';
+                
+                // Animate width with stagger
+                setTimeout(() => {
+                    bar.style.width = `${(importance / maxImportance) * 100}%`;
+                }, 100 + (index * 100));
+
+                const value = document.createElement('div');
+                value.className = 'feature-value';
+                value.textContent = (importance * 100).toFixed(1) + '%';
+
+                track.appendChild(bar);
+                row.appendChild(label);
+                row.appendChild(track);
+                row.appendChild(value);
+                importanceBars.appendChild(row);
+            });
+
+            // Show results section
+            resultsSection.style.display = 'block';
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    </script>
+</body>
+</html>
