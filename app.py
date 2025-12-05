@@ -24,13 +24,33 @@ ALL_FEATURES = ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg',
                 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
 
 # Default values for features not collected from user (median/mode from dataset)
+# Note: ca and thal are now collected from user as they are critical predictors
 FEATURE_DEFAULTS = {
     'fbs': 0,
     'restecg': 0,
-    'slope': 2,
-    'ca': 0,
-    'thal': 3
+    'slope': 2
 }
+
+
+def validate_input(data):
+    """Validate user inputs are within reasonable ranges."""
+    validations = {
+        'age': (20, 100, "Age must be between 20 and 100"),
+        'trestbps': (80, 220, "Blood pressure must be between 80 and 220"),
+        'chol': (100, 600, "Cholesterol must be between 100 and 600"),
+        'thalach': (60, 220, "Max heart rate must be between 60 and 220"),
+        'oldpeak': (0, 7, "ST depression must be between 0 and 7"),
+    }
+
+    for field, (min_val, max_val, msg) in validations.items():
+        try:
+            val = float(data.get(field, 0))
+            if not (min_val <= val <= max_val):
+                return False, msg
+        except (ValueError, TypeError):
+            return False, f"Invalid value for {field}"
+
+    return True, None
 
 
 def load_model():
@@ -91,7 +111,15 @@ def predict():
         # Get form data
         data = request.get_json()
 
-        # Extract user inputs
+        # Validate inputs
+        is_valid, error_msg = validate_input(data)
+        if not is_valid:
+            return jsonify({
+                'error': True,
+                'message': error_msg
+            }), 400
+
+        # Extract user inputs (now includes ca and thal - critical predictors)
         user_input = {
             'age': float(data.get('age', 50)),
             'sex': int(data.get('sex', 1)),
@@ -100,7 +128,9 @@ def predict():
             'chol': float(data.get('chol', 250)),
             'thalach': float(data.get('thalach', 150)),
             'exang': int(data.get('exang', 0)),
-            'oldpeak': float(data.get('oldpeak', 1.0))
+            'oldpeak': float(data.get('oldpeak', 1.0)),
+            'ca': int(data.get('ca', 0)),
+            'thal': int(data.get('thal', 3))
         }
 
         # Merge with defaults for features not collected
