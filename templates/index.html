@@ -179,11 +179,23 @@ Select Normal if you haven't had this test.</div>
 
                 <div class="divider"></div>
 
-                <!-- Feature Importance -->
-                <div class="feature-importance">
-                    <h3>Contributing Factors</h3>
-                    <p class="importance-subtitle">Top clinical indicators influencing this result:</p>
-                    <div id="importance-bars"></div>
+                <!-- Unified Clinical Analysis -->
+                <div class="clinical-analysis">
+                    <h3>Risk Factor Breakdown</h3>
+                    <p class="importance-subtitle">How your specific health metrics influenced this result:</p>
+                    
+                    <div class="analysis-legend">
+                        <div class="legend-item">
+                            <span class="legend-dot protective"></span>
+                            <span>Protective Factor (Lowers Risk)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot risk"></span>
+                            <span>Risk Factor (Increases Risk)</span>
+                        </div>
+                    </div>
+
+                    <div id="analysis-chart"></div>
                 </div>
             </div>
         </div>
@@ -316,11 +328,12 @@ Select Normal if you haven't had this test.</div>
             const riskIcon = document.getElementById('risk-icon');
             const riskText = document.getElementById('risk-text');
             const riskMessage = document.getElementById('risk-message');
-            const importanceBars = document.getElementById('importance-bars');
+            const analysisChart = document.getElementById('analysis-chart');
+            const legend = document.querySelector('.analysis-legend');
 
             // Reset classes
             riskHeader.className = 'result-header';
-            
+
             // Set risk level styling
             if (result.prediction === 1) {
                 riskHeader.classList.add('high-risk-bg');
@@ -336,58 +349,90 @@ Select Normal if you haven't had this test.</div>
 
             riskMessage.textContent = result.message;
 
-            // Display feature importance
-            importanceBars.innerHTML = '';
-            const features = result.feature_importance;
-            const featureLabels = {
-                'age': 'Age',
-                'sex': 'Sex',
-                'cp': 'Chest Pain',
-                'trestbps': 'Blood Pressure',
-                'chol': 'Cholesterol',
-                'fbs': 'Fasting Blood Sugar',
-                'restecg': 'Resting ECG',
-                'thalach': 'Max Heart Rate',
-                'exang': 'Exercise Angina',
-                'oldpeak': 'ST Depression',
-                'slope': 'ST Slope',
-                'ca': 'Major Vessels',
-                'thal': 'Thalassemia'
-            };
+            // Unified Clinical Analysis Logic
+            analysisChart.innerHTML = '';
+            
+            // 1. Try SHAP (Detailed Directional Analysis)
+            if (result.shap_explanations && result.shap_explanations.length > 0) {
+                legend.style.display = 'flex'; // Show legend
+                const maxShap = Math.max(...result.shap_explanations.map(s => s.impact));
 
-            // Get top 5 features
-            const topFeatures = Object.entries(features).slice(0, 5);
-            const maxImportance = Math.max(...topFeatures.map(f => f[1]));
+                result.shap_explanations.forEach((factor, index) => {
+                    renderAnalysisRow(factor.label, factor.impact, maxShap, factor.shap_value > 0, index);
+                });
+            } 
+            // 2. Fallback to Feature Importance (General Magnitude only)
+            else {
+                legend.style.display = 'none'; // Hide direction legend for simple importance
+                const features = result.feature_importance;
+                const topFeatures = Object.entries(features).slice(0, 5);
+                const maxImportance = Math.max(...topFeatures.map(f => f[1]));
 
-            topFeatures.forEach(([feature, importance], index) => {
+                topFeatures.forEach(([feature, importance], index) => {
+                    const readableLabel = feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    // Pass 'null' for isRisk to indicate neutral importance
+                    renderAnalysisRow(readableLabel, importance, maxImportance, null, index);
+                });
+            }
+
+            // Helper to render rows
+            function renderAnalysisRow(label, value, maxValue, isRisk, index) {
                 const row = document.createElement('div');
-                row.className = 'feature-row';
+                row.className = 'analysis-row';
 
-                const label = document.createElement('div');
-                label.className = 'feature-label';
-                label.textContent = featureLabels[feature] || feature;
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'analysis-label';
+                labelDiv.textContent = label;
 
                 const track = document.createElement('div');
-                track.className = 'progress-track';
+                track.className = 'analysis-track';
 
                 const bar = document.createElement('div');
-                bar.className = 'progress-bar';
-                
-                // Animate width with stagger
+                // Determine class: risk (red), protective (green), or neutral (blue/default)
+                let barClass = 'analysis-bar';
+                let textClass = 'analysis-value';
+                let icon = '';
+                let text = '';
+
+                if (isRisk === true) {
+                    barClass += ' risk-bg';
+                    textClass += ' risk-text';
+                    icon = 'trending_up';
+                    text = 'Increases Risk';
+                } else if (isRisk === false) {
+                    barClass += ' protective-bg';
+                    textClass += ' protective-text';
+                    icon = 'trending_down';
+                    text = 'Lowers Risk';
+                } else {
+                    barClass += ' neutral-bg'; // You might need to define this or let it default
+                    textClass += ' neutral-text';
+                    text = 'High Importance';
+                    // Default blue color via inline style if class missing
+                    bar.style.backgroundColor = '#1a73e8'; 
+                }
+
+                bar.className = barClass;
+
+                // Animate width
                 setTimeout(() => {
-                    bar.style.width = `${(importance / maxImportance) * 100}%`;
+                    bar.style.width = `${(value / maxValue) * 100}%`;
                 }, 100 + (index * 100));
 
-                const value = document.createElement('div');
-                value.className = 'feature-value';
-                value.textContent = (importance * 100).toFixed(1) + '%';
+                const valueDiv = document.createElement('div');
+                valueDiv.className = textClass;
+                if (icon) {
+                    valueDiv.innerHTML = `<span class="material-icons">${icon}</span> ${text}`;
+                } else {
+                    valueDiv.textContent = text;
+                }
 
                 track.appendChild(bar);
-                row.appendChild(label);
+                row.appendChild(labelDiv);
                 row.appendChild(track);
-                row.appendChild(value);
-                importanceBars.appendChild(row);
-            });
+                row.appendChild(valueDiv);
+                analysisChart.appendChild(row);
+            }
 
             // Show results section
             resultsSection.style.display = 'block';
