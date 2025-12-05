@@ -114,6 +114,41 @@ Asymptomatic: No pain.</div>
                         <input type="number" id="oldpeak" name="oldpeak" min="0" max="7" step="0.1" value="0.0" required>
                         <span class="hint">ECG value (Enter 0 if unknown)</span>
                     </div>
+
+                    <!-- Number of Major Vessels (ca) -->
+                    <div class="form-group" style="animation-delay: 0.45s">
+                        <div class="label-row">
+                            <label for="ca">Major Vessels (Fluoroscopy)</label>
+                            <span class="material-icons help-icon">help_outline</span>
+                            <div class="tooltip-content">Number of major blood vessels colored by fluoroscopy during cardiac catheterization. This shows how many vessels have significant blockage. Select 0 if you haven't had this test.</div>
+                        </div>
+                        <select id="ca" name="ca" required>
+                            <option value="0" selected>0 - None or Unknown</option>
+                            <option value="1">1 vessel</option>
+                            <option value="2">2 vessels</option>
+                            <option value="3">3 vessels</option>
+                        </select>
+                        <span class="hint">From cardiac catheterization test</span>
+                    </div>
+
+                    <!-- Thalassemia (thal) -->
+                    <div class="form-group" style="animation-delay: 0.5s">
+                        <div class="label-row">
+                            <label for="thal">Thalassemia (Stress Test)</label>
+                            <span class="material-icons help-icon">help_outline</span>
+                            <div class="tooltip-content">Result from a thallium stress test showing blood flow to the heart:
+- Normal: Blood flows normally
+- Fixed Defect: Permanent reduced blood flow (prior damage)
+- Reversible Defect: Reduced flow during stress only (blockage)
+Select Normal if you haven't had this test.</div>
+                        </div>
+                        <select id="thal" name="thal" required>
+                            <option value="3" selected>Normal (or Unknown)</option>
+                            <option value="6">Fixed Defect</option>
+                            <option value="7">Reversible Defect</option>
+                        </select>
+                        <span class="hint">From thallium stress test</span>
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -242,7 +277,9 @@ Asymptomatic: No pain.</div>
                 chol: document.getElementById('chol').value,
                 thalach: document.getElementById('thalach').value,
                 exang: document.getElementById('exang').value,
-                oldpeak: document.getElementById('oldpeak').value
+                oldpeak: document.getElementById('oldpeak').value,
+                ca: document.getElementById('ca').value,
+                thal: document.getElementById('thal').value
             };
 
             try {
