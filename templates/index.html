@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Heart Health Assessment</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
 </head>
 <body>
     <div class="app-bar">
@@ -50,7 +49,9 @@
                             <div class="tooltip-content">Typical Angina: Chest pain related to heart.
 Atypical Angina: Chest pain not related to heart.
 Non-anginal Pain: Pain not caused by heart disease.
-Asymptomatic: No pain.</div>
+Asymptomatic: No pain.
+
+Note: In the dataset this model was trained on, "Asymptomatic" chest pain is often associated with higher risk due to "silent ischemia," while "Typical Angina" surprisingly showed lower correlation with confirmed disease.</div>
                         </div>
                         <select id="cp" name="cp" required>
                             <option value="1">Typical Angina</option>
@@ -168,6 +169,7 @@ Select Normal if you haven't had this test.</div>
                 <div id="risk-header" class="result-header">
                     <span class="material-icons" id="risk-icon"></span>
                     <h2 id="risk-title">Assessment Result</h2>
+                    <div class="probability-badge" id="probability-badge"></div>
                 </div>
                 
                 <div class="result-body">
@@ -322,6 +324,126 @@ Select Normal if you haven't had this test.</div>
             }
         });
 
+        const FEATURE_ORDER = [
+            'age',
+            'age_adjusted_hr',
+            'age_bp_risk',
+            'age_chol_risk',
+            'metabolic_risk',
+            'st_severity',
+            'exercise_stress_index',
+            'vessel_severity',
+            'high_bp',
+            'high_chol',
+            'asymptomatic_cp',
+            'exang',
+            'chol',
+            'trestbps',
+            'thalach'
+        ];
+
+        const typicalRanges = {
+            age: '20-100 yrs',
+            sex: '0=Female, 1=Male',
+            cp: '1-4 (angina types)',
+            trestbps: '90-140 mmHg',
+            chol: '125-240 mg/dl',
+            thalach: '120-190 bpm',
+            exang: '0=No, 1=Yes',
+            oldpeak: '0-2',
+            ca: '0-3',
+            thal: '3=Normal,6=Fixed,7=Reversible',
+            age_adjusted_hr: '0.5-0.9 ratio',
+            age_bp_risk: '5-20',
+            age_chol_risk: '15-40',
+            metabolic_risk: '2-6',
+            st_severity: '0-10',
+            exercise_stress_index: '0-15',
+            vessel_severity: '0-10',
+            high_bp: '0/1',
+            high_chol: '0/1',
+            asymptomatic_cp: '0/1'
+        };
+
+        const categoricalLabels = {
+            sex: { '0': 'Female', '1': 'Male' },
+            cp: { '1': 'Typical', '2': 'Atypical', '3': 'Non-anginal', '4': 'Asymptomatic' },
+            exang: { '0': 'No', '1': 'Yes' },
+            ca: { '0': '0', '1': '1', '2': '2', '3': '3' },
+            thal: { '3': 'Normal', '6': 'Fixed Defect', '7': 'Reversible' }
+        };
+
+        function formatValue(key, value) {
+            if (value === null || value === undefined || Number.isNaN(value)) return '—';
+            const strVal = String(value);
+            const num = Number(value);
+
+            // Handle categorical labels first
+            if (categoricalLabels[key] && categoricalLabels[key][strVal] !== undefined) {
+                return categoricalLabels[key][strVal];
+            }
+
+            // Special user-friendly formatting for specific features
+            if (key === 'age_adjusted_hr' && !Number.isNaN(num)) {
+                return Math.round(num * 100) + '% of max HR';
+            }
+            if (key === 'high_bp' || key === 'high_chol' || key === 'asymptomatic_cp' || key === 'low_hr_reserve') {
+                return num >= 1 ? 'Yes' : 'No';
+            }
+            if (key === 'metabolic_risk' && !Number.isNaN(num)) {
+                if (num < 2.5) return 'Low';
+                if (num < 4) return 'Moderate';
+                return 'Elevated';
+            }
+            if ((key === 'age_bp_risk' || key === 'age_chol_risk') && !Number.isNaN(num)) {
+                if (num < 8) return 'Low';
+                if (num < 15) return 'Moderate';
+                return 'Elevated';
+            }
+            if (key === 'age' && !Number.isNaN(num)) {
+                return Math.round(num) + ' years';
+            }
+            if (key === 'trestbps' && !Number.isNaN(num)) {
+                return Math.round(num) + ' mmHg';
+            }
+            if (key === 'chol' && !Number.isNaN(num)) {
+                return Math.round(num) + ' mg/dL';
+            }
+            if (key === 'thalach' && !Number.isNaN(num)) {
+                return Math.round(num) + ' bpm';
+            }
+
+            // Default numeric formatting
+            if (!Number.isNaN(num)) {
+                if (Math.abs(num) >= 1000) return num.toFixed(0);
+                if (Math.abs(num) >= 10) return num.toFixed(1);
+                if (Math.abs(num) >= 1) return num.toFixed(1);
+                return num.toFixed(2);
+            }
+            return strVal;
+        }
+
+        function buildFallbackFactors(result) {
+            const inputs = result.inputs || {};
+            const importance = result.feature_importance || {};
+            const factors = [];
+
+            FEATURE_ORDER.forEach(feature => {
+                const imp = importance[feature] !== undefined ? importance[feature] : 0.1;
+                const val = inputs[feature];
+                factors.push({
+                    feature,
+                    label: (feature.replace(/_/g, ' ')).replace(/\b\w/g, l => l.toUpperCase()),
+                    impact: Math.abs(imp),
+                    direction: imp >= 0, // assume positive importance as risk
+                    value: val
+                });
+            });
+
+            if (!factors.length) return [];
+            return factors.sort((a, b) => b.impact - a.impact).slice(0, 8);
+        }
+
         function displayResults(result) {
             const resultsSection = document.getElementById('results');
             const riskHeader = document.getElementById('risk-header');
@@ -330,6 +452,7 @@ Select Normal if you haven't had this test.</div>
             const riskMessage = document.getElementById('risk-message');
             const analysisChart = document.getElementById('analysis-chart');
             const legend = document.querySelector('.analysis-legend');
+            const probabilityBadge = document.getElementById('probability-badge');
 
             // Reset classes
             riskHeader.className = 'result-header';
@@ -339,98 +462,184 @@ Select Normal if you haven't had this test.</div>
                 riskHeader.classList.add('high-risk-bg');
                 riskIcon.textContent = 'warning';
                 riskText.textContent = 'Elevated Risk';
-                riskText.style.color = '#d93025';
+                riskText.style.color = '#ff3b30';
             } else {
                 riskHeader.classList.add('low-risk-bg');
                 riskIcon.textContent = 'check_circle';
                 riskText.textContent = 'Lower Risk';
-                riskText.style.color = '#188038';
+                riskText.style.color = '#34c759';
             }
 
             riskMessage.textContent = result.message;
+            if (result.probability !== null && result.probability !== undefined) {
+                const pct = result.prediction === 1 ? result.probability : (1 - result.probability);
+                probabilityBadge.textContent = `${Math.round(pct * 100)}% confidence`;
+                probabilityBadge.style.display = 'inline-flex';
+            } else {
+                probabilityBadge.style.display = 'none';
+            }
 
-            // Unified Clinical Analysis Logic
+            // Unified Clinical Analysis Logic using tornado_factors (guaranteed)
             analysisChart.innerHTML = '';
-            
-            // 1. Try SHAP (Detailed Directional Analysis)
-            if (result.shap_explanations && result.shap_explanations.length > 0) {
-                legend.style.display = 'flex'; // Show legend
-                const maxShap = Math.max(...result.shap_explanations.map(s => s.impact));
+            const factors = (result.tornado_factors && result.tornado_factors.length)
+                ? result.tornado_factors
+                : buildFallbackFactors(result);
+            const maxImpact = factors.length ? Math.max(...factors.map(f => f.impact || 0)) || 1 : 1;
+            legend.style.display = 'flex';
+            console.log('Risk factors', factors, 'maxImpact', maxImpact);
 
-                result.shap_explanations.forEach((factor, index) => {
-                    renderAnalysisRow(factor.label, factor.impact, maxShap, factor.shap_value > 0, index);
-                });
-            } 
-            // 2. Fallback to Feature Importance (General Magnitude only)
-            else {
-                legend.style.display = 'none'; // Hide direction legend for simple importance
-                const features = result.feature_importance;
-                const topFeatures = Object.entries(features).slice(0, 5);
-                const maxImportance = Math.max(...topFeatures.map(f => f[1]));
+            if (!factors.length) {
+                const empty = document.createElement('p');
+                empty.className = 'importance-subtitle';
+                empty.textContent = 'No factor breakdown available.';
+                analysisChart.appendChild(empty);
+            } else {
+                // Add helpful instruction
+                const instruction = document.createElement('p');
+                instruction.className = 'click-instruction';
+                instruction.innerHTML = '<span class="material-icons">touch_app</span> Click on any factor to see more details and recommendations';
+                analysisChart.appendChild(instruction);
 
-                topFeatures.forEach(([feature, importance], index) => {
-                    const readableLabel = feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    // Pass 'null' for isRisk to indicate neutral importance
-                    renderAnalysisRow(readableLabel, importance, maxImportance, null, index);
+                factors.forEach((factor, index) => {
+                    renderAnalysisRow(factor, maxImpact, index);
                 });
             }
 
-            // Helper to render rows
-            function renderAnalysisRow(label, value, maxValue, isRisk, index) {
-                const row = document.createElement('div');
-                row.className = 'analysis-row';
+            // Helper to render rows with enhanced UX
+            function renderAnalysisRow(factor, maxValue, index) {
+                const {
+                    label, impact, direction: isRisk, feature: featureKey, value: rawVal,
+                    description, detail, category_icon, category_name, is_modifiable, recommendation
+                } = factor;
 
+                const row = document.createElement('div');
+                row.className = 'analysis-row' + (is_modifiable ? ' modifiable' : '');
+                row.style.animationDelay = `${index * 80}ms`;
+
+                // Category icon
+                const categoryIcon = document.createElement('span');
+                categoryIcon.className = 'material-icons category-icon';
+                categoryIcon.textContent = category_icon || 'info';
+                categoryIcon.title = category_name || '';
+
+                // Label with description
                 const labelDiv = document.createElement('div');
                 labelDiv.className = 'analysis-label';
-                labelDiv.textContent = label;
 
+                const labelText = document.createElement('span');
+                labelText.className = 'label-text';
+                labelText.textContent = label;
+
+                const descText = document.createElement('span');
+                descText.className = 'label-desc';
+                descText.textContent = description || '';
+
+                labelDiv.appendChild(labelText);
+                if (description) {
+                    labelDiv.appendChild(descText);
+                }
+
+                // Value chip - simplified to just show the formatted value
+                const valueChip = document.createElement('div');
+                valueChip.className = 'value-chip';
+                valueChip.textContent = formatValue(featureKey, rawVal);
+
+                // Bar track
                 const track = document.createElement('div');
                 track.className = 'analysis-track';
 
-                const bar = document.createElement('div');
-                // Determine class: risk (red), protective (green), or neutral (blue/default)
-                let barClass = 'analysis-bar';
-                let textClass = 'analysis-value';
-                let icon = '';
-                let text = '';
+                const leftHalf = document.createElement('div');
+                leftHalf.className = 'analysis-half left';
+                const leftFill = document.createElement('div');
+                leftFill.className = 'analysis-fill';
+                leftHalf.appendChild(leftFill);
 
-                if (isRisk === true) {
-                    barClass += ' risk-bg';
-                    textClass += ' risk-text';
-                    icon = 'trending_up';
-                    text = 'Increases Risk';
-                } else if (isRisk === false) {
-                    barClass += ' protective-bg';
-                    textClass += ' protective-text';
-                    icon = 'trending_down';
-                    text = 'Lowers Risk';
-                } else {
-                    barClass += ' neutral-bg'; // You might need to define this or let it default
-                    textClass += ' neutral-text';
-                    text = 'High Importance';
-                    // Default blue color via inline style if class missing
-                    bar.style.backgroundColor = '#1a73e8'; 
-                }
+                const rightHalf = document.createElement('div');
+                rightHalf.className = 'analysis-half right';
+                const rightFill = document.createElement('div');
+                rightFill.className = 'analysis-fill';
+                rightHalf.appendChild(rightFill);
 
-                bar.className = barClass;
+                track.appendChild(leftHalf);
+                track.appendChild(rightHalf);
 
-                // Animate width
+                const textClass = isRisk ? 'analysis-value risk-text' : 'analysis-value protective-text';
+                const icon = isRisk ? 'trending_up' : 'trending_down';
+                const text = isRisk ? 'Increases risk' : 'Protective';
+
+                const percentage = maxValue ? (impact / maxValue) * 100 : 0;
+                const safeWidth = Math.max(percentage, 5);
+
+                // Use requestAnimationFrame for more reliable animations
+                const delay = 80 + (index * 100);
                 setTimeout(() => {
-                    bar.style.width = `${(value / maxValue) * 100}%`;
-                }, 100 + (index * 100));
+                    requestAnimationFrame(() => {
+                        if (isRisk) {
+                            leftFill.style.width = `${safeWidth}%`;
+                        } else {
+                            rightFill.style.width = `${safeWidth}%`;
+                        }
+                    });
+                }, delay);
 
                 const valueDiv = document.createElement('div');
                 valueDiv.className = textClass;
-                if (icon) {
-                    valueDiv.innerHTML = `<span class="material-icons">${icon}</span> ${text}`;
-                } else {
-                    valueDiv.textContent = text;
+                valueDiv.innerHTML = `<span class="material-icons">${icon}</span> ${text}`;
+
+                const trackLabels = document.createElement('div');
+                trackLabels.className = 'analysis-track-labels';
+                trackLabels.innerHTML = '<span>Increased Risk</span><span>Neutral</span><span>Protective</span>';
+
+                const barGroup = document.createElement('div');
+                barGroup.className = 'analysis-bar-group';
+                barGroup.appendChild(track);
+                barGroup.appendChild(trackLabels);
+
+                // Build the main content row
+                const mainContent = document.createElement('div');
+                mainContent.className = 'analysis-main';
+                mainContent.appendChild(categoryIcon);
+                mainContent.appendChild(labelDiv);
+                mainContent.appendChild(barGroup);
+                mainContent.appendChild(valueDiv);
+                mainContent.appendChild(valueChip);
+
+                row.appendChild(mainContent);
+
+                // Expandable details section
+                if (detail || recommendation) {
+                    const detailsSection = document.createElement('div');
+                    detailsSection.className = 'analysis-details';
+
+                    if (detail) {
+                        const detailP = document.createElement('p');
+                        detailP.className = 'detail-text';
+                        detailP.innerHTML = `<span class="material-icons">info</span> ${detail}`;
+                        detailsSection.appendChild(detailP);
+                    }
+
+                    if (recommendation && is_modifiable) {
+                        const recDiv = document.createElement('div');
+                        recDiv.className = 'recommendation-box';
+                        recDiv.innerHTML = `<span class="material-icons">lightbulb</span><div><strong>What you can do:</strong> ${recommendation}</div>`;
+                        detailsSection.appendChild(recDiv);
+                    }
+
+                    row.appendChild(detailsSection);
+
+                    // Toggle details on click
+                    mainContent.style.cursor = 'pointer';
+                    mainContent.addEventListener('click', () => {
+                        row.classList.toggle('expanded');
+                    });
+
+                    // Add expand indicator
+                    const expandIcon = document.createElement('span');
+                    expandIcon.className = 'material-icons expand-icon';
+                    expandIcon.textContent = 'expand_more';
+                    mainContent.appendChild(expandIcon);
                 }
 
-                track.appendChild(bar);
-                row.appendChild(labelDiv);
-                row.appendChild(track);
-                row.appendChild(valueDiv);
                 analysisChart.appendChild(row);
             }
 
