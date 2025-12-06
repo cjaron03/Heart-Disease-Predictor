@@ -5,3 +5,9 @@ scikit-learn
 flask
 joblib
 nbformat
+xgboost
+lightgbm
+shap
+optuna
+imbalanced-learn
+scipy
